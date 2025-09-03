@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "buildNumber": "1",
+  "releaseDate": "2024-01-15",
+  "productName": "SyncSure Agent",
+  "companyName": "SyncSure Technologies",
+  "copyright": "Copyright © 2024 SyncSure Technologies. All rights reserved.",
+  "description": "SyncSure Agent for OneDrive monitoring and device management",
+  "fileVersion": "1.0.0.1",
+  "productVersion": "1.0.0",
+  "internalName": "SyncSureAgent",
+  "originalFilename": "SyncSureAgent.exe",
+  "legalTrademarks": "SyncSure is a trademark of SyncSure Technologies",
+  "buildConfiguration": "Release",
+  "targetFramework": "net6.0-windows",
+  "minWindowsVersion": "10.0.17763.0",
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2024-01-15",
+      "changes": [
+        "Initial release",
+        "OneDrive monitoring and status reporting",
+        "Windows service implementation",
+        "Comprehensive logging system",
+        "API integration with SyncSure backend",
+        "Automated deployment scripts",
+        "License key embedding system"
+      ]
+    }
+  ]
+}
+

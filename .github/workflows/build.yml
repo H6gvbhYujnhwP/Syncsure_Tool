@@ -1,0 +1,253 @@
+name: Build SyncSure Agent
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:  # Allow manual triggering for testing
+    inputs:
+      version:
+        description: 'Version to build (e.g., v1.0.0)'
+        required: false
+        default: 'v1.0.0-dev'
+
+env:
+  DOTNET_VERSION: '6.0.x'
+  PROJECT_NAME: 'SyncSureAgent'
+  PROJECT_PATH: 'src/SyncSureAgent.csproj'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Get version
+      id: version
+      run: |
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $version = "${{ github.event.inputs.version }}"
+        } else {
+          $version = "${{ github.ref_name }}"
+        }
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "Building version: $version"
+        
+    - name: Update version in project file
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $versionNumber = $version -replace '^v', ''
+        
+        $projectFile = "${{ env.PROJECT_PATH }}"
+        $content = Get-Content $projectFile -Raw
+        $content = $content -replace '<AssemblyVersion>.*</AssemblyVersion>', "<AssemblyVersion>$versionNumber</AssemblyVersion>"
+        $content = $content -replace '<FileVersion>.*</FileVersion>', "<FileVersion>$versionNumber</FileVersion>"
+        Set-Content $projectFile $content
+        
+        echo "Updated version to: $versionNumber"
+        
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
+      
+    - name: Build project
+      run: dotnet build ${{ env.PROJECT_PATH }} -c Release --no-restore
+      
+    - name: Run tests (if any)
+      run: |
+        if (Test-Path "tests") {
+          dotnet test --no-restore --verbosity normal
+        } else {
+          echo "No tests found, skipping test execution"
+        }
+        
+    - name: Publish self-contained EXE
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          --no-restore `
+          -p:PublishSingleFile=true `
+          -p:PublishTrimmed=false `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:EnableCompressionInSingleFile=true `
+          -o publish/
+          
+    - name: Verify build output
+      run: |
+        $exePath = "publish/${{ env.PROJECT_NAME }}.exe"
+        if (Test-Path $exePath) {
+          $fileInfo = Get-Item $exePath
+          echo "✅ Build successful!"
+          echo "   File: $($fileInfo.Name)"
+          echo "   Size: $([math]::Round($fileInfo.Length / 1MB, 2)) MB"
+          echo "   Created: $($fileInfo.CreationTime)"
+        } else {
+          echo "❌ Build failed - EXE not found"
+          exit 1
+        }
+        
+    - name: Generate SHA256 hash
+      run: |
+        $exePath = "publish/${{ env.PROJECT_NAME }}.exe"
+        $hash = Get-FileHash $exePath -Algorithm SHA256
+        $hashValue = $hash.Hash
+        
+        # Save hash to file
+        $hashValue | Out-File -FilePath "publish/${{ env.PROJECT_NAME }}.exe.sha256" -Encoding ASCII -NoNewline
+        
+        echo "✅ SHA256 hash generated:"
+        echo "   Hash: $hashValue"
+        
+        # Also create a verification file with filename
+        $verificationContent = "$hashValue  ${{ env.PROJECT_NAME }}.exe"
+        $verificationContent | Out-File -FilePath "publish/SHA256SUMS" -Encoding ASCII
+        
+    - name: Create deployment script
+      run: |
+        # Copy the deployment script to publish directory
+        if (Test-Path "scripts/deploy-agent.ps1") {
+          Copy-Item "scripts/deploy-agent.ps1" "publish/deploy-syncsure-agent.ps1"
+          echo "✅ Deployment script copied"
+        } else {
+          echo "⚠️ Deployment script not found at scripts/deploy-agent.ps1"
+        }
+        
+    - name: Create installation package
+      run: |
+        # Create a simple batch installer
+        $batchContent = @"
+@echo off
+echo SyncSure Agent Installation
+echo ========================
+echo.
+echo This will install the SyncSure Agent as a Windows service.
+echo Make sure you have administrator privileges.
+echo.
+pause
+
+echo Installing SyncSure Agent...
+"%~dp0${{ env.PROJECT_NAME }}.exe" /quiet
+
+if %ERRORLEVEL% EQU 0 (
+    echo.
+    echo ✅ Installation completed successfully!
+    echo The SyncSure Agent service should now be running.
+    echo.
+    echo You can check the service status with:
+    echo   sc query SyncSureAgent
+    echo.
+) else (
+    echo.
+    echo ❌ Installation failed with error code %ERRORLEVEL%
+    echo Please check the logs and try again.
+    echo.
+)
+
+pause
+"@
+        $batchContent | Out-File -FilePath "publish/install.bat" -Encoding ASCII
+        echo "✅ Installation batch file created"
+        
+    - name: List build artifacts
+      run: |
+        echo "📦 Build artifacts:"
+        Get-ChildItem "publish/" | ForEach-Object {
+          $size = if ($_.PSIsContainer) { "DIR" } else { "$([math]::Round($_.Length / 1KB, 1)) KB" }
+          echo "   $($_.Name) ($size)"
+        }
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: syncsure-agent-${{ steps.version.outputs.VERSION }}-${{ github.sha }}
+        path: |
+          publish/${{ env.PROJECT_NAME }}.exe
+          publish/${{ env.PROJECT_NAME }}.exe.sha256
+          publish/SHA256SUMS
+          publish/deploy-syncsure-agent.ps1
+          publish/install.bat
+        retention-days: 90
+        
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: SyncSure Agent ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## SyncSure Agent ${{ steps.version.outputs.VERSION }}
+          
+          ### 📦 Release Files:
+          - **`${{ env.PROJECT_NAME }}.exe`** - Main agent executable (self-contained)
+          - **`${{ env.PROJECT_NAME }}.exe.sha256`** - SHA256 hash for verification
+          - **`SHA256SUMS`** - Hash verification file (standard format)
+          - **`deploy-syncsure-agent.ps1`** - PowerShell deployment script for RMM
+          - **`install.bat`** - Simple batch installer for manual installation
+          
+          ### 🚀 Quick Installation:
+          1. **Download** the files above
+          2. **Run as Administrator**: `install.bat` for interactive installation
+          3. **Or use PowerShell** for automated deployment:
+             ```powershell
+             .\deploy-syncsure-agent.ps1 -LicenseKey "YOUR-LICENSE" -MaxDevices 25 -ExeUrl "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/${{ env.PROJECT_NAME }}.exe"
+             ```
+          
+          ### 🔐 Security:
+          - **Verify integrity** using the SHA256 hash before installation
+          - **Self-contained executable** - no additional dependencies required
+          - **Windows service** - runs automatically on startup
+          
+          ### 📋 System Requirements:
+          - Windows 10/11 or Windows Server 2016+
+          - Administrator privileges for installation
+          - Internet connectivity for license validation and telemetry
+          
+          ### 📝 Logs & Troubleshooting:
+          - **Service logs**: `%ProgramData%\SyncSure\logs\`
+          - **Windows Event Log**: Application and Services Logs → SyncSure Agent
+          - **Service status**: `sc query SyncSureAgent`
+          
+        files: |
+          publish/${{ env.PROJECT_NAME }}.exe
+          publish/${{ env.PROJECT_NAME }}.exe.sha256
+          publish/SHA256SUMS
+          publish/deploy-syncsure-agent.ps1
+          publish/install.bat
+        generate_release_notes: false
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build Summary
+      run: |
+        echo "🎉 Build completed successfully!"
+        echo ""
+        echo "📊 Build Summary:"
+        echo "   Version: ${{ steps.version.outputs.VERSION }}"
+        echo "   Commit: ${{ github.sha }}"
+        echo "   .NET Version: ${{ env.DOTNET_VERSION }}"
+        echo "   Target: win-x64 (self-contained)"
+        echo ""
+        
+        $exePath = "publish/${{ env.PROJECT_NAME }}.exe"
+        if (Test-Path $exePath) {
+          $fileInfo = Get-Item $exePath
+          echo "📦 Executable Info:"
+          echo "   Size: $([math]::Round($fileInfo.Length / 1MB, 2)) MB"
+          echo "   Path: $exePath"
+        }
+        
+        if ("${{ github.event_name }}" -eq "push" -and "${{ startsWith(github.ref, 'refs/tags/') }}" -eq "True") {
+          echo ""
+          echo "🚀 GitHub Release created at:"
+          echo "   https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.VERSION }}"
+        }
+

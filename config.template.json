@@ -1,0 +1,48 @@
+{
+  "ApiBaseUrl": "https://syncsure-backend.onrender.com",
+  "CheckIntervalMinutes": 5,
+  "LogLevel": "Information",
+  "LogRetentionDays": 30,
+  "DeviceIdentityFile": "device-identity.json",
+  "LicenseKey": "00000000000000000000000000000000",
+  "Features": {
+    "OneDriveMonitoring": true,
+    "AutoUpdate": true,
+    "ApiReporting": true,
+    "DetailedLogging": true
+  },
+  "OneDrive": {
+    "CheckSyncStatus": true,
+    "MonitorFileChanges": false,
+    "ReportQuotaUsage": true,
+    "DetectMultipleAccounts": true
+  },
+  "Network": {
+    "TimeoutSeconds": 30,
+    "RetryAttempts": 3,
+    "RetryDelaySeconds": 5,
+    "UseProxy": false,
+    "ProxyUrl": "",
+    "ProxyCredentials": ""
+  },
+  "Logging": {
+    "EnableFileLogging": true,
+    "EnableEventLog": true,
+    "MaxLogFileSizeMB": 10,
+    "LogDirectory": "logs",
+    "IncludeStackTrace": false,
+    "LogApiCalls": false
+  },
+  "Updates": {
+    "CheckForUpdatesHours": 24,
+    "AutoInstallUpdates": false,
+    "UpdateChannel": "stable",
+    "BackupBeforeUpdate": true
+  },
+  "Security": {
+    "ValidateCertificates": true,
+    "EncryptLocalData": true,
+    "SecureApiCommunication": true
+  }
+}
+
