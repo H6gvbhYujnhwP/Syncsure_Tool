@@ -110,3 +110,13 @@ public class AgentStatus
     public SystemMetrics? LastSystemMetrics { get; set; }
 }
 
+
+// Server Command Models
+public class ServerCommand
+{
+    public string Type { get; set; } = string.Empty;
+    public string? Payload { get; set; }
+    public DateTime IssuedUtc { get; set; } = DateTime.UtcNow;
+    public string? CommandId { get; set; }
+}
+
