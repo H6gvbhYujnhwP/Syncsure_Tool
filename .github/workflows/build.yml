@@ -122,7 +122,7 @@ jobs:
     - name: Create installation package
       run: |
         # Create a simple batch installer
-        $batchContent = @"
+        $batchContent = @'
 @echo off
 echo SyncSure Agent Installation
 echo ========================
@@ -137,7 +137,7 @@ echo Installing SyncSure Agent...
 
 if %ERRORLEVEL% EQU 0 (
     echo.
-    echo ✅ Installation completed successfully!
+    echo Installation completed successfully!
     echo The SyncSure Agent service should now be running.
     echo.
     echo You can check the service status with:
@@ -145,13 +145,13 @@ if %ERRORLEVEL% EQU 0 (
     echo.
 ) else (
     echo.
-    echo ❌ Installation failed with error code %ERRORLEVEL%
+    echo Installation failed with error code %ERRORLEVEL%
     echo Please check the logs and try again.
     echo.
 )
 
 pause
-"@
+'@
         $batchContent | Out-File -FilePath "publish/install.bat" -Encoding ASCII
         echo "✅ Installation batch file created"
         
