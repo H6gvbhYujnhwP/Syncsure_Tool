@@ -122,37 +122,9 @@ jobs:
     - name: Create installation package
       run: |
         # Create a simple batch installer
-        $batchContent = @'
-@echo off
-echo SyncSure Agent Installation
-echo ========================
-echo.
-echo This will install the SyncSure Agent as a Windows service.
-echo Make sure you have administrator privileges.
-echo.
-pause
-
-echo Installing SyncSure Agent...
-"%~dp0${{ env.PROJECT_NAME }}.exe" /quiet
-
-if %ERRORLEVEL% EQU 0 (
-    echo.
-    echo Installation completed successfully!
-    echo The SyncSure Agent service should now be running.
-    echo.
-    echo You can check the service status with:
-    echo   sc query SyncSureAgent
-    echo.
-) else (
-    echo.
-    echo Installation failed with error code %ERRORLEVEL%
-    echo Please check the logs and try again.
-    echo.
-)
-
-pause
-'@
-        $batchContent | Out-File -FilePath "publish/install.bat" -Encoding ASCII
+        echo "Creating installation batch file..."
+        $content = "echo SyncSure Agent Installation`necho ========================`necho.`necho Installing SyncSure Agent...`n`"%~dp0SyncSureAgent.exe`" /quiet`necho Installation completed.`npause"
+        $content | Out-File -FilePath "publish/install.bat" -Encoding ASCII
         echo "✅ Installation batch file created"
         
     - name: List build artifacts
