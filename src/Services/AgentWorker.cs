@@ -211,7 +211,7 @@ public class AgentWorker : BackgroundService
             return new SystemMetrics
             {
                 CpuUsagePercent = 0, // TODO: Implement CPU usage calculation
-                MemoryUsageMB = process.WorkingSet64 / (1024 * 1024),
+                MemoryUsageMB = (long)(process.WorkingSet64 / (1024 * 1024)),
                 DiskFreeSpaceGB = GetDiskFreeSpace(),
                 UptimeHours = (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalHours
             };

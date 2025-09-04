@@ -93,6 +93,7 @@ public class SystemMetrics
     public long MemoryTotalMB { get; set; }
     public long DiskFreeSpaceGB { get; set; }
     public long DiskTotalSpaceGB { get; set; }
+    public double UptimeHours { get; set; }
     public DateTime SystemStartTimeUtc { get; set; }
     public string OperatingSystem { get; set; } = string.Empty;
     public string? ComputerName { get; set; }
