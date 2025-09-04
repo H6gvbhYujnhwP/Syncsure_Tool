@@ -14,6 +14,8 @@ public class BindRequest
     public string DeviceName { get; set; } = string.Empty;
     public string AgentVersion { get; set; } = string.Empty;
     public string Platform { get; set; } = "windows";
+    public string OperatingSystem { get; set; } = string.Empty;
+    public string Architecture { get; set; } = "x64";
 }
 
 public class BindResponse : IApiResponse
@@ -23,6 +25,7 @@ public class BindResponse : IApiResponse
     public string? BindingId { get; set; }
     public int MaxDevices { get; set; }
     public int CurrentDevices { get; set; }
+    public int SeatsUsed { get; set; }
     public bool LicenseValid { get; set; }
     public DateTime? LicenseExpiresUtc { get; set; }
 }
@@ -30,9 +33,13 @@ public class BindResponse : IApiResponse
 // Heartbeat Request/Response
 public class HeartbeatRequest
 {
+    public string LicenseKey { get; set; } = string.Empty;
+    public string? BindingId { get; set; }
     public string DeviceHash { get; set; } = string.Empty;
     public string AgentVersion { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public DateTime TimestampUtc { get; set; } = DateTime.UtcNow;
+    public AgentMetrics Metrics { get; set; } = new();
     public OneDriveMetrics OneDriveMetrics { get; set; } = new();
     public SystemMetrics SystemMetrics { get; set; } = new();
 }
@@ -46,6 +53,7 @@ public class HeartbeatResponse : IApiResponse
     public DateTime? NextHeartbeatUtc { get; set; }
     public string? UpdateAvailable { get; set; }
     public string? Message { get; set; }
+    public ServerCommand[]? Commands { get; set; }
 }
 
 // Update Check Request/Response
@@ -118,5 +126,14 @@ public class ServerCommand
     public string? Payload { get; set; }
     public DateTime IssuedUtc { get; set; } = DateTime.UtcNow;
     public string? CommandId { get; set; }
+}
+
+
+// Agent Metrics
+public class AgentMetrics
+{
+    public OneDriveMetrics OneDrive { get; set; } = new();
+    public SystemMetrics System { get; set; } = new();
+    public DateTime CollectedUtc { get; set; } = DateTime.UtcNow;
 }
 
