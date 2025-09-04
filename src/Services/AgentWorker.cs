@@ -212,7 +212,7 @@ public class AgentWorker : BackgroundService
             {
                 CpuUsagePercent = 0, // TODO: Implement CPU usage calculation
                 MemoryUsageMB = (long)(process.WorkingSet64 / (1024 * 1024)),
-                DiskFreeSpaceGB = GetDiskFreeSpace(),
+                DiskFreeSpaceGB = (long)GetDiskFreeSpace(),
                 UptimeHours = (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalHours
             };
         }
