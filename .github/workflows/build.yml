@@ -4,6 +4,12 @@ on:
   push:
     branches: [ main ]
     tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag for the build'
+        required: true
+        type: string
 
 permissions:
   contents: write   # REQUIRED to create releases
