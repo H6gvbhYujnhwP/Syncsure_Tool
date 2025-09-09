@@ -14,10 +14,12 @@ public class AgentWorker : BackgroundService
     private readonly ApiClient _apiClient;
     private readonly OneDriveProbeService _probeService;
     private readonly UpdaterService _updaterService;
+    private readonly ILicenseKeyService _licenseKeyService;
     
     private string? _bindingId;
     private bool _isBound = false;
     private DateTime _lastUpdateCheck = DateTime.MinValue;
+    private string? _resolvedLicenseKey;
 
     public AgentWorker(
         ILogger<AgentWorker> logger,
@@ -25,7 +27,8 @@ public class AgentWorker : BackgroundService
         DeviceIdentityService deviceService,
         ApiClient apiClient,
         OneDriveProbeService probeService,
-        UpdaterService updaterService)
+        UpdaterService updaterService,
+        ILicenseKeyService licenseKeyService)
     {
         _logger = logger;
         _config = config.Value;
@@ -33,21 +36,30 @@ public class AgentWorker : BackgroundService
         _apiClient = apiClient;
         _probeService = probeService;
         _updaterService = updaterService;
+        _licenseKeyService = licenseKeyService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("SyncSure Agent Worker starting...");
         
-        // Validate configuration
-        if (string.IsNullOrEmpty(_config.LicenseKey))
+        // Resolve license key from multiple sources
+        var args = Environment.GetCommandLineArgs();
+        _resolvedLicenseKey = _licenseKeyService.ResolveLicenseKey(args);
+        
+        if (string.IsNullOrEmpty(_resolvedLicenseKey))
         {
             _logger.LogError("License key not configured. Agent cannot start.");
+            _logger.LogError("Please provide a license key via:");
+            _logger.LogError("  - Command line: --license-key SYNC-XXXXXXXXXX-XXXXXXXX");
+            _logger.LogError("  - Environment variable: SYNCSURE_LICENSE_KEY");
+            _logger.LogError("  - Config file: C:\\ProgramData\\SyncSure\\config.json");
+            _logger.LogError("  - Embedded resource: license.key");
             return;
         }
 
         _logger.LogInformation("Agent configured with license: {LicenseKey}, Max devices: {MaxDevices}", 
-            MaskLicenseKey(_config.LicenseKey), _config.MaxDevices);
+            MaskLicenseKey(_resolvedLicenseKey), _config.MaxDevices);
 
         // Initialize device identity
         await _deviceService.InitializeAsync();
@@ -115,7 +127,7 @@ public class AgentWorker : BackgroundService
             
             var bindRequest = new BindRequest
             {
-                LicenseKey = _config.LicenseKey,
+                LicenseKey = _resolvedLicenseKey!,
                 DeviceHash = _deviceService.DeviceHash,
                 AgentVersion = GetAgentVersion(),
                 DeviceName = Environment.MachineName,
@@ -160,7 +172,7 @@ public class AgentWorker : BackgroundService
             
             var heartbeat = new HeartbeatRequest
             {
-                LicenseKey = _config.LicenseKey,
+                LicenseKey = _resolvedLicenseKey!,
                 DeviceHash = _deviceService.DeviceHash,
                 BindingId = _bindingId,
                 AgentVersion = GetAgentVersion(),

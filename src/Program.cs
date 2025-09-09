@@ -86,6 +86,7 @@ public class Program
         });
 
         // Add services
+        builder.Services.AddSingleton<ILicenseKeyService, LicenseKeyService>();
         builder.Services.AddSingleton<DeviceIdentityService>();
         builder.Services.AddSingleton<ApiClient>();
         builder.Services.AddSingleton<OneDriveProbeService>();
