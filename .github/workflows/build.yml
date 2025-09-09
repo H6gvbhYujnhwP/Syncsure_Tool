@@ -10,6 +10,10 @@ on:
         description: 'Release tag for the build'
         required: true
         type: string
+      license_key:
+        description: 'Customer license key to embed in the executable'
+        required: true
+        type: string
 
 permissions:
   contents: write   # REQUIRED to create releases
@@ -37,6 +41,8 @@ jobs:
       - name: Publish (win-x64, self-contained)
         run: |
           cd src
+          # Set license key as environment variable for embedding
+          $env:SYNCSURE_LICENSE_KEY = "${{ github.event.inputs.license_key }}"
           dotnet publish ./SyncSureAgent.csproj `
             -c Release `
             -r win-x64 `
@@ -44,6 +50,7 @@ jobs:
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:PublishTrimmed=false `
+            -p:DefineConstants="EMBEDDED_LICENSE" `
             -o ../out
 
       - name: Verify build output
