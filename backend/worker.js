@@ -99,6 +99,5 @@ async function startWorker() {
   }
 }
 
-startWorker();(tick, TICK_MS);
-console.log("✅ worker started");
+startWorker();
 
