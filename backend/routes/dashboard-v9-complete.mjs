@@ -266,5 +266,88 @@ router.get('/builds/customer/:email', async (req, res) => {
   }
 });
 
+// V9 Downloads endpoint - Returns download information based on subscription
+router.get('/downloads', async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email parameter is required'
+      });
+    }
+
+    console.log(`[V9 Downloads] Fetching downloads for: ${email}`);
+
+    // Get account
+    const accountResult = await db.query(
+      'SELECT id, email, name, stripe_customer_id FROM accounts WHERE email = $1',
+      [email]
+    );
+
+    if (accountResult.rows.length === 0) {
+      console.log(`[V9 Downloads] Account not found: ${email}`);
+      return res.json({
+        success: true,
+        hasSubscription: false,
+        buildStatus: 'no_subscription',
+        message: 'No subscription found'
+      });
+    }
+
+    const account = accountResult.rows[0];
+
+    // Get license to check subscription status
+    const licenseResult = await db.query(
+      'SELECT * FROM licenses WHERE account_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [account.id]
+    );
+
+    if (licenseResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        hasSubscription: false,
+        buildStatus: 'no_subscription',
+        message: 'No license found'
+      });
+    }
+
+    const license = licenseResult.rows[0];
+
+    // Get latest build for this account
+    const buildResult = await db.query(
+      'SELECT * FROM builds WHERE account_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [account.id]
+    );
+
+    let buildStatus = 'no_builds';
+    let downloadUrl = null;
+
+    if (buildResult.rows.length > 0) {
+      const build = buildResult.rows[0];
+      buildStatus = build.status;
+      downloadUrl = build.download_url;
+    }
+
+    return res.json({
+      success: true,
+      hasSubscription: true,
+      buildStatus: buildStatus,
+      downloadUrl: downloadUrl,
+      licenseKey: license.license_key,
+      message: buildStatus === 'released' ? 'Build ready for download' : 'Build in progress'
+    });
+
+  } catch (error) {
+    console.error('[V9 Downloads] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch downloads',
+      details: error.message
+    });
+  }
+});
+
 export default router;
 
